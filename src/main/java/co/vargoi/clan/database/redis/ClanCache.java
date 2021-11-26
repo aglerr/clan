@@ -39,6 +39,16 @@ public class ClanCache implements Listener {
     }
 
     @Nullable
+    public Clan getClan(String uuid){
+        return clanMap.get(uuid);
+    }
+
+    @Nullable
+    public ClanBedwars getClanBedwars(String uuid){
+        return clanBedwarsMap.get(uuid);
+    }
+
+    @Nullable
     public ClanPlayer getClanPlayer(Player player){
         return getClanPlayer(player.getName());
     }
@@ -48,8 +58,41 @@ public class ClanCache implements Listener {
         return clanPlayerMap.get(name);
     }
 
-    public ClanPlayer remove(String name){
-        return clanPlayerMap.remove(name);
+    @Nullable
+    public ClanStats getClanStats(String uuid){
+        return clanStatsMap.get(uuid);
+    }
+
+    public void addClan(Clan clan){
+        this.clanMap.put(clan.getClanUUID(), clan);
+    }
+
+    public void addClanBedwars(ClanBedwars clanBedwars){
+        this.clanBedwarsMap.put(clanBedwars.getClanUUID(), clanBedwars);
+    }
+
+    public void addClanPlayer(ClanPlayer clanPlayer){
+        this.clanPlayerMap.put(clanPlayer.getName(), clanPlayer);
+    }
+
+    public void addClanStats(ClanStats clanStats){
+        this.clanStatsMap.put(clanStats.getClanUUID(), clanStats);
+    }
+
+    public Clan removeClan(String uuid){
+        return this.clanMap.remove(uuid);
+    }
+
+    public ClanBedwars removeClanBedwars(String uuid){
+        return this.clanBedwarsMap.remove(uuid);
+    }
+
+    public ClanPlayer removeClanPlayer(String name){
+        return this.clanPlayerMap.remove(name);
+    }
+
+    public ClanStats removeClanStats(String uuid){
+        return this.clanStatsMap.remove(uuid);
     }
 
     public boolean loadPlayerSync(String name){
@@ -72,8 +115,7 @@ public class ClanCache implements Listener {
 
                                 ClanPlayer clanPlayer = new ClanPlayer(playerName, clanUUID, clanRank);
                                 // Save the player data on redis cache
-                                jedis.hset(key, "uuid", clanUUID == null ? "null" : clanUUID);
-                                jedis.hset(key, "rank", clanRank == null ? "null" : clanRank.name());
+                                RedisSave.saveAndPublishToRedis(redisHandler, gson, clanPlayer);
                                 // Finally, put it on the local hashmap
                                 this.clanPlayerMap.put(name, clanPlayer);
                             }
@@ -82,15 +124,14 @@ public class ClanCache implements Listener {
                     // Create a new data
                     ClanPlayer clanPlayer = new ClanPlayer(name, null, null);
                     // Save the player data on redis cache
-                    jedis.hset(key, "uuid", "null");
-                    jedis.hset(key, "rank", "null");
+                    RedisSave.saveAndPublishToRedis(redisHandler, gson, clanPlayer);
                     // Finally, put it on the local hashmap
                     this.clanPlayerMap.put(name, clanPlayer);
                 }
             } else {
                 Common.debug("Action: Load user's data from Redis Cache");
                 // The data is exist on redis cache, so load it from there
-                ClanPlayer clanPlayer = RedisSerializer.serializeClanPlayer(name, jedis.hgetAll(key));
+                ClanPlayer clanPlayer = gson.fromJson(jedis.hget(key, "details"), ClanPlayer.class);
                 // Put it on the local hashmap
                 clanPlayerMap.put(name, clanPlayer);
             }
@@ -107,12 +148,8 @@ public class ClanCache implements Listener {
         if(clanPlayer == null){
             return;
         }
-        RedisSave.saveToRedis(redisHandler, clanPlayer);
+        RedisSave.saveAndPublishToRedis(redisHandler, gson, clanPlayer);
         SQLHelper.save(clanPlayer);
-        try(Jedis jedis = redisHandler.getJedisPool().getResource()){
-            jedis.auth(redisHandler.getPassword());
-            jedis.publish(RedisHandler.CHANNEL_CLAN_PLAYER, gson.toJson(clanPlayer));
-        }
     }
 
     public void subscribeAsync(){
@@ -170,4 +207,11 @@ public class ClanCache implements Listener {
         }
     }
 
+    public RedisHandler getRedisHandler() {
+        return redisHandler;
+    }
+
+    public Gson getGson() {
+        return gson;
+    }
 }
