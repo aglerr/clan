@@ -37,63 +37,6 @@ public class RedisHandler {
         }
     }
 
-    public void subscribeAsync() {
-        Executor.async(this::subscribeSync);
-    }
-
-    public void subscribeSync() {
-        try (Jedis jedis = this.jedisPool.getResource()) {
-            jedis.auth(password);
-
-            JedisPubSub jedisPubSub = new JedisPubSub() {
-                @Override
-                public void onMessage(String channel, String message) {
-                    System.out.println("Channel " + channel + " has sent a message: " + message);
-
-                    switch (channel){
-                        case CHANNEL_CLAN:{
-                            // Get the redis cache and apply the data to local cache
-                            break;
-                        }
-                        case CHANNEL_CLAN_BEDWARS:{
-                            break;
-                        }
-                        case CHANNEL_CLAN_PLAYER:{
-                            break;
-                        }
-                        case CHANNEL_CLAN_STATS:{
-                            // Get the required data from clan stats
-                            String key = ClanCache.CACHE_CLAN_STATS + message;
-                            int balance = Integer.parseInt(jedis.hget(key, "balance"));
-                            int points = Integer.parseInt(jedis.hget(key, "points"));
-
-                            // Get the clan by uuid
-                            // Get the ClanStats object
-                            // Set the balance and points
-                            break;
-                        }
-                        default:{
-                            throw new IllegalArgumentException("Channel '" + channel + "' is not subscribed!");
-                        }
-                    }
-
-                }
-            };
-
-            jedis.subscribe(
-                    jedisPubSub,
-                    CHANNEL_CLAN,
-                    CHANNEL_CLAN_BEDWARS,
-                    CHANNEL_CLAN_PLAYER,
-                    CHANNEL_CLAN_STATS
-            );
-
-        } catch (Exception ex) {
-            Common.log(ChatColor.RED, "Failed to subscribe:");
-            ex.printStackTrace();
-        }
-    }
-
     public String getPassword() {
         return password;
     }

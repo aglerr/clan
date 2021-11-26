@@ -40,4 +40,8 @@ public class ClanPlayer {
         Executor.async(() -> SQLHelper.save(this));
     }
 
+    public void info(){
+        System.out.println("name=" + name + ",clanuuid=" + uuid + ",rank=" + rank);
+    }
+
 }

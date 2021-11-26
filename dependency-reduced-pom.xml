@@ -21,6 +21,10 @@
                   <pattern>redis.clients.jedis</pattern>
                   <shadedPattern>co.vargoi.clan.redis</shadedPattern>
                 </relocation>
+                <relocation>
+                  <pattern>me.aglerr.lazylibs</pattern>
+                  <shadedPattern>co.vargoi.clan.lazylibs</shadedPattern>
+                </relocation>
               </relocations>
             </configuration>
           </execution>

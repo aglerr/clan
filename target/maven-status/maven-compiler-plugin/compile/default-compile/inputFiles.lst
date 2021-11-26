@@ -7,6 +7,8 @@ C:\Daffa\Intellij IDEA\VargoiClan\src\main\java\co\vargoi\clan\clan\objects\Clan
 C:\Daffa\Intellij IDEA\VargoiClan\src\main\java\co\vargoi\clan\enums\ClanRank.java
 C:\Daffa\Intellij IDEA\VargoiClan\src\main\java\co\vargoi\clan\clan\ClanHandler.java
 C:\Daffa\Intellij IDEA\VargoiClan\src\main\java\co\vargoi\clan\database\redis\RedisHandler.java
+C:\Daffa\Intellij IDEA\VargoiClan\src\main\java\co\vargoi\clan\database\redis\RedisUtils.java
+C:\Daffa\Intellij IDEA\VargoiClan\src\main\java\co\vargoi\clan\listeners\PlayerListeners.java
 C:\Daffa\Intellij IDEA\VargoiClan\src\main\java\co\vargoi\clan\clan\objects\Clan.java
 C:\Daffa\Intellij IDEA\VargoiClan\src\main\java\co\vargoi\clan\clan\objects\ClanBedwars.java
 C:\Daffa\Intellij IDEA\VargoiClan\src\main\java\co\vargoi\clan\exceptions\ClanStatsException.java

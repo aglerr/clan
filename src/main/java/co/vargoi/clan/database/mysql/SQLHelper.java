@@ -77,17 +77,18 @@ public class SQLHelper {
         String condition = "SELECT name FROM `" + PLAYER_TABLE + "` WHERE " +
                 "name=\"" + clanPlayer.getName() + "\";";
 
+        String rank = clanPlayer.getRank() == null ? null : clanPlayer.getRank().name();
         if(doesConditionExist(condition)){
             executeUpdate("UPDATE `{player_table}` SET " +
                     "uuid=\"" + clanPlayer.getClanUUID() + "\", " +
-                    "rank=\"" + clanPlayer.getRank().name() + "\" " +
+                    "rank=\"" + rank + "\" " +
                     "WHERE name=\"" + clanPlayer.getName() + "\";"
             );
         } else {
             executeUpdate("INSERT INTO `{player_table}` VALUES (" +
                     "\"" + clanPlayer.getClanUUID() + "\", " +
                     "\"" + clanPlayer.getName() + "\", " +
-                    "\"" + clanPlayer.getRank().name() + "\");"
+                    "\"" + rank + "\");"
             );
         }
     }

@@ -4,6 +4,7 @@ import co.vargoi.clan.database.mysql.SQLDatabaseInitializer;
 import co.vargoi.clan.database.mysql.SQLHelper;
 import co.vargoi.clan.database.redis.ClanCache;
 import co.vargoi.clan.database.redis.RedisHandler;
+import co.vargoi.clan.listeners.PlayerListeners;
 import me.aglerr.lazylibs.LazyLibs;
 import me.aglerr.lazylibs.libs.Common;
 import org.bukkit.Bukkit;
@@ -43,6 +44,7 @@ public class VargoiClan extends JavaPlugin {
     public void onEnable(){
         LazyLibs.inject(this);
         Common.setPrefix("[VargoiClan]");
+        Common.DEBUG = true;
 
         SQLDatabaseInitializer.getInstance().init(this);
 
@@ -52,9 +54,10 @@ public class VargoiClan extends JavaPlugin {
                 "ddb5zidfmljovHMTagJKAmLuupyS0U3f"
         );
         redisHandler.connect();
-
         clanCache = new ClanCache(redisHandler);
-        clanCache.loadClanStats();
+        clanCache.subscribeAsync();
+
+        Bukkit.getPluginManager().registerEvents(new PlayerListeners(clanCache), this);
 
     }
 

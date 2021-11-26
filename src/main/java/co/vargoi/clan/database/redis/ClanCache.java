@@ -1,17 +1,15 @@
 package co.vargoi.clan.database.redis;
 
 import co.vargoi.clan.clan.objects.ClanPlayer;
-import co.vargoi.clan.clan.objects.ClanStats;
 import co.vargoi.clan.database.mysql.SQLHelper;
 import co.vargoi.clan.enums.ClanRank;
-import co.vargoi.clan.exceptions.ClanStatsException;
-import com.avaje.ebean.SqlUpdate;
 import me.aglerr.lazylibs.libs.Common;
+import me.aglerr.lazylibs.libs.Executor;
 import org.bukkit.ChatColor;
 import org.bukkit.event.Listener;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPubSub;
 
-import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,6 +39,7 @@ public class ClanCache implements Listener {
                 // User's data on redis is empty, load it from mysql
                 String condition = "SELECT name FROM `" + SQLHelper.PLAYER_TABLE + "` WHERE " +
                         "name=\"" + name + "\";";
+                Common.debug("Action: Load user's data from MySQL");
                 if(SQLHelper.doesConditionExist(condition)){
                     // Load from mysql
                     SQLHelper.executeQuery(
@@ -52,26 +51,30 @@ public class ClanCache implements Listener {
 
                                 ClanPlayer clanPlayer = new ClanPlayer(playerName, clanUUID, clanRank);
                                 // Save the player data on redis cache
-                                jedis.hset(key, "uuid", clanUUID);
-                                jedis.hset(key, "rank", clanRank == null ? null : clanRank.name());
+                                jedis.hset(key, "uuid", clanUUID == null ? "null" : clanUUID);
+                                jedis.hset(key, "rank", clanRank == null ? "null" : clanRank.name());
                                 // Finally, put it on the local hashmap
                                 this.clanPlayerMap.put(name, clanPlayer);
+                                clanPlayer.info();
                             }
                     );
                 } else {
                     // Create a new data
                     ClanPlayer clanPlayer = new ClanPlayer(name, null, null);
                     // Save the player data on redis cache
-                    jedis.hset(key, "uuid", null);
-                    jedis.hset(key, "rank", null);
+                    jedis.hset(key, "uuid", "null");
+                    jedis.hset(key, "rank", "null");
                     // Finally, put it on the local hashmap
                     this.clanPlayerMap.put(name, clanPlayer);
+                    clanPlayer.info();
                 }
             } else {
+                Common.debug("Action: Load user's data from Redis Cache");
                 // The data is exist on redis cache, so load it from there
-                ClanPlayer clanPlayer = serializeFromRedis(name, jedis.hgetAll(key));
+                ClanPlayer clanPlayer = RedisUtils.serializeFromRedis(name, jedis.hgetAll(key));
                 // Put it on the local hashmap
                 clanPlayerMap.put(name, clanPlayer);
+                clanPlayer.info();
             }
             return true;
         } catch (Exception ex){
@@ -88,27 +91,73 @@ public class ClanCache implements Listener {
         }
         this.saveToRedis(clanPlayer);
         SQLHelper.save(clanPlayer);
-        // TODO: Publish the data to subscribers
+        try(Jedis jedis = redisHandler.getJedisPool().getResource()){
+            jedis.auth(redisHandler.getPassword());
+            jedis.publish(RedisHandler.CHANNEL_CLAN_PLAYER, name);
+        }
     }
 
-    public void saveToRedis(ClanPlayer clanPlayer){
+    public void subscribeAsync(){
+        Executor.async(this::subscribeSync);
+    }
+
+    public void subscribeSync() {
+        try (Jedis jedis = redisHandler.getJedisPool().getResource()) {
+            jedis.auth(redisHandler.getPassword());
+
+            JedisPubSub jedisPubSub = new JedisPubSub() {
+                @Override
+                public void onMessage(String channel, String message) {
+                    System.out.println("Channel " + channel + " has sent a message: " + message);
+
+                    switch (channel){
+                        case RedisHandler.CHANNEL_CLAN:{
+                            // Get the redis cache and apply the data to local cache
+                            break;
+                        }
+                        case RedisHandler.CHANNEL_CLAN_BEDWARS:{
+                            break;
+                        }
+                        case RedisHandler.CHANNEL_CLAN_PLAYER:{
+                            ClanPlayer clanPlayer = RedisUtils.serializeFromRedis(message, jedis.hgetAll(CACHE_CLAN_PLAYER + message));
+                            clanPlayerMap.put(message, clanPlayer);
+                            break;
+                        }
+                        case RedisHandler.CHANNEL_CLAN_STATS:{
+                            break;
+                        }
+                        default:{
+                            throw new IllegalArgumentException("Channel '" + channel + "' is not subscribed!");
+                        }
+                    }
+                }
+            };
+
+            jedis.subscribe(
+                    jedisPubSub,
+                    RedisHandler.CHANNEL_CLAN,
+                    RedisHandler.CHANNEL_CLAN_BEDWARS,
+                    RedisHandler.CHANNEL_CLAN_PLAYER,
+                    RedisHandler.CHANNEL_CLAN_STATS
+            );
+
+        } catch (Exception ex) {
+            Common.log(ChatColor.RED, "Failed to subscribe:");
+            ex.printStackTrace();
+        }
+    }
+
+    private void saveToRedis(ClanPlayer clanPlayer){
         try(Jedis jedis = redisHandler.getJedisPool().getResource()){
             jedis.auth(redisHandler.getPassword());
             String key = CACHE_CLAN_PLAYER + clanPlayer.getName();
 
-            jedis.hset(key, "uuid", clanPlayer.getClanUUID());
-            jedis.hset(key, "rank", clanPlayer.getRank() == null ? null : clanPlayer.getRank().name());
+            jedis.hset(key, "uuid", clanPlayer.getClanUUID() == null ? "null" : clanPlayer.getClanUUID());
+            jedis.hset(key, "rank", clanPlayer.getRank() == null ? "null" : clanPlayer.getRank().name());
         } catch (Exception ex){
             Common.log(ChatColor.RED, "Failed to saving ClanPlayer object to Redis:");
             ex.printStackTrace();
         }
     }
-
-    private ClanPlayer serializeFromRedis(String name, Map<String, String> playerMap){
-        String clanUUID = playerMap.get("uuid");
-        ClanRank clanRank = ClanRank.getRank(playerMap.get("rank"));
-        return new ClanPlayer(name, clanUUID, clanRank);
-    }
-
 
 }

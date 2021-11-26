@@ -2,8 +2,6 @@ package co.vargoi.clan.enums;
 
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Locale;
-
 public enum ClanRank {
     /**
      * Owner can change clans name, tag, disband the clan,
@@ -22,6 +20,9 @@ public enum ClanRank {
 
     @Nullable
     public static ClanRank getRank(String rank){
+        if(rank == null){
+            return null;
+        }
         switch(rank.toLowerCase()){
             case "owner":
                 return OWNER;
