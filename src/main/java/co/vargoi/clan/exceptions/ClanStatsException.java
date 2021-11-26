@@ -11,6 +11,14 @@ public class ClanStatsException extends Exception{
     private final int balance;
     private final int points;
     private final String message;
+
+    public ClanStatsException(ClanStats clanStats, String message){
+        this.uuid = clanStats.getClanUUID();
+        this.balance = clanStats.getBalance();
+        this.points = clanStats.getPoints();
+        this.message = message;
+    }
+
     public ClanStatsException(String uuid, int balance, int points, String message){
         this.uuid = uuid;
         this.balance = balance;

@@ -7,8 +7,8 @@ import me.aglerr.lazylibs.libs.Executor;
 public class ClanPlayer {
 
     private final String name;
-    private final String uuid;
-    private final ClanRank rank;
+    private String uuid;
+    private ClanRank rank;
 
     public ClanPlayer(String name, String uuid, ClanRank rank){
         this.name = name;
@@ -24,8 +24,16 @@ public class ClanPlayer {
         return uuid;
     }
 
+    public void setClanUUID(String uuid){
+        this.uuid = uuid;
+    }
+
     public ClanRank getRank() {
         return rank;
+    }
+
+    public void setRank(ClanRank rank){
+        this.rank = rank;
     }
 
     public void saveAsync(){

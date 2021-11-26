@@ -1,5 +1,9 @@
 package co.vargoi.clan.enums;
 
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Locale;
+
 public enum ClanRank {
     /**
      * Owner can change clans name, tag, disband the clan,
@@ -14,5 +18,20 @@ public enum ClanRank {
      * Member doesn't have any advantages other than
      * gaining stats for the clan.
      */
-    MEMBER
+    MEMBER;
+
+    @Nullable
+    public static ClanRank getRank(String rank){
+        switch(rank.toLowerCase()){
+            case "owner":
+                return OWNER;
+            case "moderator":
+                return MODERATOR;
+            case "member":
+                return MEMBER;
+            default:
+                return null;
+        }
+    }
+
 }

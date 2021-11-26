@@ -12,4 +12,5 @@ co\vargoi\clan\VargoiClan.class
 co\vargoi\clan\clan\objects\ClanPlayer.class
 co\vargoi\clan\clan\ClanHandler.class
 co\vargoi\clan\enums\ClanRank.class
+co\vargoi\clan\database\redis\RedisHandler$1.class
 co\vargoi\clan\database\mysql\SQLSession$QueryConsumer.class

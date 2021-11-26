@@ -1,6 +1,7 @@
 package co.vargoi.clan.clan;
 
 import co.vargoi.clan.clan.objects.Clan;
+import co.vargoi.clan.database.mysql.SQLHelper;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
