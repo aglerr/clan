@@ -1,12 +1,18 @@
 package co.vargoi.clan.database.redis;
 
+import co.vargoi.clan.clan.objects.Clan;
+import co.vargoi.clan.clan.objects.ClanBedwars;
 import co.vargoi.clan.clan.objects.ClanPlayer;
+import co.vargoi.clan.clan.objects.ClanStats;
 import co.vargoi.clan.database.mysql.SQLHelper;
 import co.vargoi.clan.enums.ClanRank;
+import com.google.gson.Gson;
 import me.aglerr.lazylibs.libs.Common;
 import me.aglerr.lazylibs.libs.Executor;
 import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
+import org.jetbrains.annotations.Nullable;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 
@@ -20,11 +26,26 @@ public class ClanCache implements Listener {
     public static final String CACHE_CLAN_PLAYER = "cache::clanplayer::";
     public static final String CACHE_CLAN_STATS = "cache::clanstats::";
 
+    private final Gson gson = new Gson();
+
+    private final Map<String, Clan> clanMap = new HashMap<>();
+    private final Map<String, ClanBedwars> clanBedwarsMap = new HashMap<>();
     private final Map<String, ClanPlayer> clanPlayerMap = new HashMap<>();
+    private final Map<String, ClanStats> clanStatsMap = new HashMap<>();
 
     private final RedisHandler redisHandler;
     public ClanCache(RedisHandler redisHandler){
         this.redisHandler = redisHandler;
+    }
+
+    @Nullable
+    public ClanPlayer getClanPlayer(Player player){
+        return getClanPlayer(player.getName());
+    }
+
+    @Nullable
+    public ClanPlayer getClanPlayer(String name){
+        return clanPlayerMap.get(name);
     }
 
     public ClanPlayer remove(String name){
@@ -55,7 +76,6 @@ public class ClanCache implements Listener {
                                 jedis.hset(key, "rank", clanRank == null ? "null" : clanRank.name());
                                 // Finally, put it on the local hashmap
                                 this.clanPlayerMap.put(name, clanPlayer);
-                                clanPlayer.info();
                             }
                     );
                 } else {
@@ -66,15 +86,13 @@ public class ClanCache implements Listener {
                     jedis.hset(key, "rank", "null");
                     // Finally, put it on the local hashmap
                     this.clanPlayerMap.put(name, clanPlayer);
-                    clanPlayer.info();
                 }
             } else {
                 Common.debug("Action: Load user's data from Redis Cache");
                 // The data is exist on redis cache, so load it from there
-                ClanPlayer clanPlayer = RedisUtils.serializeFromRedis(name, jedis.hgetAll(key));
+                ClanPlayer clanPlayer = RedisSerializer.serializeClanPlayer(name, jedis.hgetAll(key));
                 // Put it on the local hashmap
                 clanPlayerMap.put(name, clanPlayer);
-                clanPlayer.info();
             }
             return true;
         } catch (Exception ex){
@@ -89,11 +107,11 @@ public class ClanCache implements Listener {
         if(clanPlayer == null){
             return;
         }
-        this.saveToRedis(clanPlayer);
+        RedisSave.saveToRedis(redisHandler, clanPlayer);
         SQLHelper.save(clanPlayer);
         try(Jedis jedis = redisHandler.getJedisPool().getResource()){
             jedis.auth(redisHandler.getPassword());
-            jedis.publish(RedisHandler.CHANNEL_CLAN_PLAYER, name);
+            jedis.publish(RedisHandler.CHANNEL_CLAN_PLAYER, gson.toJson(clanPlayer));
         }
     }
 
@@ -112,18 +130,23 @@ public class ClanCache implements Listener {
 
                     switch (channel){
                         case RedisHandler.CHANNEL_CLAN:{
-                            // Get the redis cache and apply the data to local cache
+                            Clan clan = gson.fromJson(message, Clan.class);
+                            clanMap.put(clan.getClanUUID(), clan);
                             break;
                         }
                         case RedisHandler.CHANNEL_CLAN_BEDWARS:{
+                            ClanBedwars clanBedwars = gson.fromJson(message, ClanBedwars.class);
+                            clanBedwarsMap.put(clanBedwars.getClanUUID(), clanBedwars);
                             break;
                         }
                         case RedisHandler.CHANNEL_CLAN_PLAYER:{
-                            ClanPlayer clanPlayer = RedisUtils.serializeFromRedis(message, jedis.hgetAll(CACHE_CLAN_PLAYER + message));
-                            clanPlayerMap.put(message, clanPlayer);
+                            ClanPlayer clanPlayer = gson.fromJson(message, ClanPlayer.class);
+                            clanPlayerMap.put(clanPlayer.getName(), clanPlayer);
                             break;
                         }
                         case RedisHandler.CHANNEL_CLAN_STATS:{
+                            ClanStats clanStats = gson.fromJson(message, ClanStats.class);
+                            clanStatsMap.put(clanStats.getClanUUID(), clanStats);
                             break;
                         }
                         default:{
@@ -143,19 +166,6 @@ public class ClanCache implements Listener {
 
         } catch (Exception ex) {
             Common.log(ChatColor.RED, "Failed to subscribe:");
-            ex.printStackTrace();
-        }
-    }
-
-    private void saveToRedis(ClanPlayer clanPlayer){
-        try(Jedis jedis = redisHandler.getJedisPool().getResource()){
-            jedis.auth(redisHandler.getPassword());
-            String key = CACHE_CLAN_PLAYER + clanPlayer.getName();
-
-            jedis.hset(key, "uuid", clanPlayer.getClanUUID() == null ? "null" : clanPlayer.getClanUUID());
-            jedis.hset(key, "rank", clanPlayer.getRank() == null ? "null" : clanPlayer.getRank().name());
-        } catch (Exception ex){
-            Common.log(ChatColor.RED, "Failed to saving ClanPlayer object to Redis:");
             ex.printStackTrace();
         }
     }

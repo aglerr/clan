@@ -1,5 +1,6 @@
 package co.vargoi.clan.clan.objects;
 
+import co.vargoi.clan.VargoiClan;
 import co.vargoi.clan.database.mysql.SQLHelper;
 import me.aglerr.lazylibs.libs.Executor;
 
@@ -16,13 +17,9 @@ public class Clan {
     private String owner;
     private int maxMembers;
     private final LocalDateTime createdAt;
-    private final List<ClanPlayer> members;
-    private final ClanStats clanStats;
-    private final ClanBedwars clanBedwars;
 
     public Clan(String uuid, String name, String description, String tag, String colorTag, String owner,
-                int maxMembers, LocalDateTime createdAt, List<ClanPlayer> members, ClanStats clanStats,
-                ClanBedwars clanBedwars) {
+                int maxMembers, LocalDateTime createdAt) {
         this.uuid = uuid;
         this.name = name;
         this.description = description;
@@ -31,9 +28,6 @@ public class Clan {
         this.owner = owner;
         this.maxMembers = maxMembers;
         this.createdAt = createdAt;
-        this.members = members;
-        this.clanStats = clanStats;
-        this.clanBedwars = clanBedwars;
     }
 
     public String getClanUUID() {
@@ -92,16 +86,8 @@ public class Clan {
         return createdAt;
     }
 
-    public List<ClanPlayer> getMembers() {
-        return members;
-    }
-
-    public ClanStats getClanStats() {
-        return clanStats;
-    }
-
-    public ClanBedwars getClanBedwars() {
-        return clanBedwars;
+    public String getCreatedAtInString(){
+        return VargoiClan.TIME_FORMAT.format(createdAt);
     }
 
     public void saveAsync(){
