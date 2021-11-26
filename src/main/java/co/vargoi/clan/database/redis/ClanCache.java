@@ -6,6 +6,8 @@ import co.vargoi.clan.database.mysql.SQLHelper;
 import co.vargoi.clan.enums.ClanRank;
 import co.vargoi.clan.exceptions.ClanStatsException;
 import com.avaje.ebean.SqlUpdate;
+import me.aglerr.lazylibs.libs.Common;
+import org.bukkit.ChatColor;
 import org.bukkit.event.Listener;
 import redis.clients.jedis.Jedis;
 
@@ -27,8 +29,13 @@ public class ClanCache implements Listener {
         this.redisHandler = redisHandler;
     }
 
-    public void loadPlayerSync(String name){
+    public ClanPlayer remove(String name){
+        return clanPlayerMap.remove(name);
+    }
+
+    public boolean loadPlayerSync(String name){
         try(Jedis jedis = redisHandler.getJedisPool().getResource()){
+            jedis.auth(redisHandler.getPassword());
             String key = CACHE_CLAN_PLAYER + name;
             if(jedis.hgetAll(key).isEmpty()){
                 // User's data on redis is empty, load it from mysql
@@ -66,6 +73,34 @@ public class ClanCache implements Listener {
                 // Put it on the local hashmap
                 clanPlayerMap.put(name, clanPlayer);
             }
+            return true;
+        } catch (Exception ex){
+            Common.log(ChatColor.RED, "Failed to load '" + name + "' data:");
+            ex.printStackTrace();
+            return false;
+        }
+    }
+
+    public void savePlayerSync(String name){
+        ClanPlayer clanPlayer = clanPlayerMap.remove(name);
+        if(clanPlayer == null){
+            return;
+        }
+        this.saveToRedis(clanPlayer);
+        SQLHelper.save(clanPlayer);
+        // TODO: Publish the data to subscribers
+    }
+
+    public void saveToRedis(ClanPlayer clanPlayer){
+        try(Jedis jedis = redisHandler.getJedisPool().getResource()){
+            jedis.auth(redisHandler.getPassword());
+            String key = CACHE_CLAN_PLAYER + clanPlayer.getName();
+
+            jedis.hset(key, "uuid", clanPlayer.getClanUUID());
+            jedis.hset(key, "rank", clanPlayer.getRank() == null ? null : clanPlayer.getRank().name());
+        } catch (Exception ex){
+            Common.log(ChatColor.RED, "Failed to saving ClanPlayer object to Redis:");
+            ex.printStackTrace();
         }
     }
 
