@@ -12,10 +12,12 @@ import me.aglerr.lazylibs.libs.Executor;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,6 +45,10 @@ public class ClanCache implements Listener {
         return clanMap.get(uuid);
     }
 
+    public Collection<Clan> getClans(){
+        return clanMap.values();
+    }
+
     @Nullable
     public ClanBedwars getClanBedwars(String uuid){
         return clanBedwarsMap.get(uuid);
@@ -63,19 +69,19 @@ public class ClanCache implements Listener {
         return clanStatsMap.get(uuid);
     }
 
-    public void addClan(Clan clan){
+    public void addClan(@NotNull Clan clan){
         this.clanMap.put(clan.getClanUUID(), clan);
     }
 
-    public void addClanBedwars(ClanBedwars clanBedwars){
+    public void addClanBedwars(@NotNull ClanBedwars clanBedwars){
         this.clanBedwarsMap.put(clanBedwars.getClanUUID(), clanBedwars);
     }
 
-    public void addClanPlayer(ClanPlayer clanPlayer){
+    public void addClanPlayer(@NotNull ClanPlayer clanPlayer){
         this.clanPlayerMap.put(clanPlayer.getName(), clanPlayer);
     }
 
-    public void addClanStats(ClanStats clanStats){
+    public void addClanStats(@NotNull ClanStats clanStats){
         this.clanStatsMap.put(clanStats.getClanUUID(), clanStats);
     }
 
@@ -93,63 +99,6 @@ public class ClanCache implements Listener {
 
     public ClanStats removeClanStats(String uuid){
         return this.clanStatsMap.remove(uuid);
-    }
-
-    public boolean loadPlayerSync(String name){
-        try(Jedis jedis = redisHandler.getJedisPool().getResource()){
-            jedis.auth(redisHandler.getPassword());
-            String key = CACHE_CLAN_PLAYER + name;
-            if(jedis.hgetAll(key).isEmpty()){
-                // User's data on redis is empty, load it from mysql
-                String condition = "SELECT name FROM `" + SQLHelper.PLAYER_TABLE + "` WHERE " +
-                        "name=\"" + name + "\";";
-                Common.debug("Action: Load user's data from MySQL");
-                if(SQLHelper.doesConditionExist(condition)){
-                    // Load from mysql
-                    SQLHelper.executeQuery(
-                            "SELECT * FROM `" + SQLHelper.PLAYER_TABLE + "` WHERE name=\"" + name + "\";",
-                            resultSet -> {
-                                String clanUUID = resultSet.getString("uuid");
-                                String playerName = resultSet.getString("name");
-                                ClanRank clanRank = ClanRank.getRank(resultSet.getString("rank"));
-
-                                ClanPlayer clanPlayer = new ClanPlayer(playerName, clanUUID, clanRank);
-                                // Save the player data on redis cache
-                                RedisSave.saveAndPublishToRedis(redisHandler, gson, clanPlayer);
-                                // Finally, put it on the local hashmap
-                                this.clanPlayerMap.put(name, clanPlayer);
-                            }
-                    );
-                } else {
-                    // Create a new data
-                    ClanPlayer clanPlayer = new ClanPlayer(name, null, null);
-                    // Save the player data on redis cache
-                    RedisSave.saveAndPublishToRedis(redisHandler, gson, clanPlayer);
-                    // Finally, put it on the local hashmap
-                    this.clanPlayerMap.put(name, clanPlayer);
-                }
-            } else {
-                Common.debug("Action: Load user's data from Redis Cache");
-                // The data is exist on redis cache, so load it from there
-                ClanPlayer clanPlayer = gson.fromJson(jedis.hget(key, "details"), ClanPlayer.class);
-                // Put it on the local hashmap
-                clanPlayerMap.put(name, clanPlayer);
-            }
-            return true;
-        } catch (Exception ex){
-            Common.log(ChatColor.RED, "Failed to load '" + name + "' data:");
-            ex.printStackTrace();
-            return false;
-        }
-    }
-
-    public void savePlayerSync(String name){
-        ClanPlayer clanPlayer = clanPlayerMap.remove(name);
-        if(clanPlayer == null){
-            return;
-        }
-        RedisSave.saveAndPublishToRedis(redisHandler, gson, clanPlayer);
-        SQLHelper.save(clanPlayer);
     }
 
     public void subscribeAsync(){

@@ -2,12 +2,14 @@ package co.vargoi.clan.clan.objects;
 
 import co.vargoi.clan.database.mysql.SQLHelper;
 import co.vargoi.clan.enums.ClanRank;
+import com.google.gson.annotations.SerializedName;
 import me.aglerr.lazylibs.libs.Executor;
 
 public class ClanPlayer {
 
     private final String name;
     private String uuid;
+    @SerializedName("rank")
     private ClanRank rank;
 
     public ClanPlayer(String name, String uuid, ClanRank rank){

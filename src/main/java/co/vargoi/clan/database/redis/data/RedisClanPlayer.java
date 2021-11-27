@@ -15,15 +15,12 @@ public class RedisClanPlayer {
         try(Jedis jedis = clanCache.getRedisHandler().getJedisPool().getResource()){
             jedis.auth(clanCache.getRedisHandler().getPassword());
             String key = ClanCache.CACHE_CLAN_PLAYER + name;
-            if(jedis.hgetAll(key).isEmpty()){
+            if(jedis.hget(key, "details") == null){
                 // User's data on redis is empty, load it from mysql
-                String condition = "SELECT name FROM `" + SQLHelper.PLAYER_TABLE + "` WHERE " +
-                        "name=\"" + name + "\";";
-                if(SQLHelper.doesConditionExist(condition)){
-                    // Load from mysql
-                    SQLHelper.executeQuery(
-                            "SELECT * FROM `" + SQLHelper.PLAYER_TABLE + "` WHERE name=\"" + name + "\";",
-                            resultSet -> {
+                String query = "SELECT * FROM `" + SQLHelper.PLAYER_TABLE + "` WHERE name=\"" + name + "\";";
+                SQLHelper.executeQuery(query,
+                        resultSet -> {
+                            if(resultSet.next()){
                                 String clanUUID = resultSet.getString("uuid");
                                 String playerName = resultSet.getString("name");
                                 ClanRank clanRank = ClanRank.getRank(resultSet.getString("rank"));
@@ -31,14 +28,14 @@ public class RedisClanPlayer {
                                 ClanPlayer clanPlayer = new ClanPlayer(playerName, clanUUID, clanRank);
                                 // Save the player data on redis cache
                                 RedisSave.saveAndPublishToRedis(clanCache.getRedisHandler(), clanCache.getGson(), clanPlayer);
+                            } else {
+                                // Create a new data
+                                ClanPlayer clanPlayer = new ClanPlayer(name, null, null);
+                                // Save the player data on redis cache
+                                RedisSave.saveAndPublishToRedis(clanCache.getRedisHandler(), clanCache.getGson(), clanPlayer);
                             }
-                    );
-                } else {
-                    // Create a new data
-                    ClanPlayer clanPlayer = new ClanPlayer(name, null, null);
-                    // Save the player data on redis cache
-                    RedisSave.saveAndPublishToRedis(clanCache.getRedisHandler(), clanCache.getGson(), clanPlayer);
-                }
+                        }
+                );
             } else {
                 // The data is exist on redis cache, so load it from there
                 ClanPlayer clanPlayer = clanCache.getGson().fromJson(jedis.hget(key, "details"), ClanPlayer.class);
@@ -50,6 +47,7 @@ public class RedisClanPlayer {
             ex.printStackTrace();
             return false;
         }
+
     }
 
     public static void saveClanPlayerSync(ClanCache clanCache, String name){

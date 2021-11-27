@@ -1,13 +1,18 @@
 package co.vargoi.clan;
 
+import co.vargoi.clan.clan.objects.Clan;
 import co.vargoi.clan.database.mysql.SQLDatabaseInitializer;
 import co.vargoi.clan.database.mysql.SQLHelper;
 import co.vargoi.clan.database.redis.ClanCache;
 import co.vargoi.clan.database.redis.RedisHandler;
+import co.vargoi.clan.database.redis.data.RedisClan;
+import co.vargoi.clan.database.redis.data.RedisClanBedwars;
+import co.vargoi.clan.database.redis.data.RedisClanStats;
 import co.vargoi.clan.listeners.PlayerListeners;
 import me.aglerr.lazylibs.LazyLibs;
 import me.aglerr.lazylibs.libs.Common;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.plugin.java.JavaPlugin;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -63,7 +68,19 @@ public class VargoiClan extends JavaPlugin {
 
     @Override
     public void onDisable(){
+        // Save all local cached clans
+        Common.log(ChatColor.RESET, "Saving Task - saving all clans data...");
+        long start = System.currentTimeMillis();
+        for (Clan clan : clanCache.getClans()) {
+            RedisClan.saveClanSync(clanCache, clan.getClanUUID());
+            RedisClanBedwars.saveClanBedwarsSync(clanCache, clan.getClanUUID());
+            RedisClanStats.saveClanStatsSync(clanCache, clan.getClanUUID());
+
+            long finished = start - System.currentTimeMillis();
+            Common.log(ChatColor.RESET, "Saved clan with uuid '" + clan.getClanUUID() + "' (took " + finished + "ms)");
+        }
         SQLHelper.close();
+        redisHandler.close();
     }
 
 }

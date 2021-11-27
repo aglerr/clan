@@ -15,27 +15,24 @@ public class RedisClanStats {
             jedis.auth(clanCache.getRedisHandler().getPassword());
             String key = ClanCache.CACHE_CLAN_STATS + uuid;
             if(jedis.hgetAll(key).isEmpty()){
-                // There is no ClanStats data for this clan on redis cache
-                String condition = "SELECT uuid FROM `" + SQLHelper.STATS_TABLE + "` WHERE " +
-                        "uuid=\"" + uuid + "\";";
-                if(SQLHelper.doesConditionExist(condition)){
-                    // Clan data exist on database, so load it from mysql
-                    SQLHelper.executeQuery(
-                            "SELECT * FROM `" + SQLHelper.STATS_TABLE + "` WHERE uuid=\"" + uuid + "\";",
-                            resultSet -> {
+                // There is no ClanStats data for this clan on redis cache, load it from mysql
+                String query = "SELECT * FROM `" + SQLHelper.STATS_TABLE + "` WHERE uuid=\"" + uuid + "\";";
+                SQLHelper.executeQuery(query,
+                        resultSet -> {
+                            if(resultSet.next()){
                                 int balance = resultSet.getInt("balance");
                                 int points = resultSet.getInt("points");
 
                                 ClanStats clanStats = new ClanStats(uuid, balance, points);
                                 RedisSave.saveAndPublishToRedis(clanCache.getRedisHandler(), clanCache.getGson(), clanStats);
+                            } else {
+                                // Create a new data
+                                ClanStats clanStats = new ClanStats(uuid, 0,0);
+                                // Save data and publish it to redis
+                                RedisSave.saveAndPublishToRedis(clanCache.getRedisHandler(), clanCache.getGson(), clanStats);
                             }
-                    );
-                } else {
-                    // Create a new data
-                    ClanStats clanStats = new ClanStats(uuid, 0,0);
-                    // Save data and publish it to redis
-                    RedisSave.saveAndPublishToRedis(clanCache.getRedisHandler(), clanCache.getGson(), clanStats);
-                }
+                        }
+                );
             } else {
                 // Data is exist on redis cache, so load it from there
                 ClanStats clanStats = clanCache.getGson().fromJson(jedis.hget(key, "details"), ClanStats.class);

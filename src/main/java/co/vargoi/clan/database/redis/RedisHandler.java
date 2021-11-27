@@ -37,6 +37,10 @@ public class RedisHandler {
         }
     }
 
+    public void close(){
+        jedisPool.close();
+    }
+
     public String getPassword() {
         return password;
     }
